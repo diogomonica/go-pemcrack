@@ -8,7 +8,10 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"sync"
 )
+
+var numRoutines int = 5
 
 func check(e error) {
 	if e != nil {
@@ -20,14 +23,28 @@ func printUsage() {
 	fmt.Println("Usage: pemcrack PEM_FILE DICT_FILE")
 }
 
-func checkPassword(pem *pem.Block, passwords []string, done chan string) {
+func checkPassword(pem *pem.Block, passwords []string, wg *sync.WaitGroup) {
 	for _, password := range passwords {
-		_, err := x509.DecryptPEMBlock(pem, []byte(password))
-
+		key, err := x509.DecryptPEMBlock(pem, []byte(password))
 		if err == nil {
-			done <- password
+			validKey := false
+			_, err = x509.ParsePKCS8PrivateKey(key)
+			if err == nil {
+				validKey = true
+			}
+
+			_, err = x509.ParsePKCS1PrivateKey(key)
+			if err == nil {
+				validKey = true
+			}
+
+			if validKey == true {
+				fmt.Println("Password found: " + password)
+				wg.Done()
+			}
 		}
 	}
+	wg.Done()
 }
 
 func readLines(path string) ([]string, error) {
@@ -85,14 +102,17 @@ func main() {
 	// Print the details of the private key
 	fmt.Printf("PEM Type :\n%s\n", decodedPEM.Type)
 	fmt.Printf("PEM Headers :\n%s\n", decodedPEM.Headers)
-	fmt.Printf("PEM Bytes :\n%x\n", string(decodedPEM.Bytes))
+	// fmt.Printf("PEM Bytes :\n%x\n", string(decodedPEM.Bytes))
 
-	// Create the channel and start the threads
-	done := make(chan string, 1)
-	go checkPassword(decodedPEM, passwordList[0:dictLen/2], done)
-	go checkPassword(decodedPEM, passwordList[dictLen/2:], done)
+	var wg sync.WaitGroup
+	wg.Add(numRoutines)
 
-	// Wait for a password to match and print it out
-	correctPassword := <-done
-	fmt.Println("Password found: " + correctPassword)
+	// Start the routines
+	sliceSize := dictLen / numRoutines
+	for i := 0; i < numRoutines; i++ {
+		go checkPassword(decodedPEM, passwordList[i*(sliceSize):(i+1)*sliceSize], &wg)
+	}
+	fmt.Println("Cracking password...")
+	// Wait for all the routines
+	wg.Wait()
 }

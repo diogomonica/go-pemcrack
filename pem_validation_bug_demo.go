@@ -48,10 +48,22 @@ lOb1XwXRJvKsaHMI7ujCRu3nhqVgsRlTjCIkWExc5/MnK5leiUVWLHmsfLqC3Kht
 `
 
 func checkPassword(pem *pem.Block, password string) {
-	_, err := x509.DecryptPEMBlock(pem, []byte(password))
-
+	key, err := x509.DecryptPEMBlock(pem, []byte(password))
 	if err == nil {
-		fmt.Println("Valid password found: " + password)
+		validKey := false
+		_, err = x509.ParsePKCS8PrivateKey(key)
+		if err == nil {
+			validKey = true
+		}
+
+		_, err = x509.ParsePKCS1PrivateKey(key)
+		if err == nil {
+			validKey = true
+		}
+
+		if validKey == true {
+			fmt.Println("Valid password found: " + password)
+		}
 	}
 }
 
