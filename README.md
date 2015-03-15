@@ -32,11 +32,13 @@ While go-pemcrack does find the right password, it currently has a lot of false-
 This validation seems to be insuficient and any password that makes the padding match up these three conditions makes `x509.DecryptPEMBloc` provide an non-error return.
 
 You can generate your own private key using the following command line command:
-
-    # openssl genrsa -des3 -out private.pem 2048
-
+```bash
+openssl genrsa -des3 -out private.pem 2048
+```
 To validate if you have the right password you can run this command:
 
-    # openssl rsa -in private.pem -outform PEM -pubout -out public.pem
+```bash
+openssl rsa -in private.pem -outform PEM -pubout -out public.pem
+```
 
 The password that was used for private.pem is `omgomgponies`
